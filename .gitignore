@@ -4,4 +4,3 @@ dist
 build
 files/*
 .env
-sample-dataset.csv
