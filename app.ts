@@ -21,7 +21,7 @@ async function test(from: number, to: number) {
   const docIds: number[] = await parseCsv(sampleDatasetPath, from, to);
 
   for (let i = 0; i < docIds.length; i++) {
-    // wait 3 seconds to avoid getting blocked by the website, its 3 second between each request
+    // wait 3 seconds to avoid getting blocked by the website, rate limit is 3 second between each request from same host
     await new Promise((resolve) => setTimeout(resolve, 3000));
 
     const scrapedData = await scrapFips(
