@@ -2,10 +2,15 @@ import puppeteer from "puppeteer";
 import { scrapFips } from "./src/scrappers/fips.ru";
 import { addTradeMark } from "./src/scripts/insert-trademark";
 import { parseCsv } from "./src/scripts/parse-csv";
-
+import * as fs from "fs";
+import { downloadLatestDatasetOrigin } from "./src/scripts/get-latest-excel";
 async function test(from: number, to: number) {
   // read the sample dataset and get the docuemntId from index 0 and then log the documentId
-  const sampleDatasetPath = "./sample-dataset.csv";
+  const sampleDatasetPath = "./files/latest-dataset-origin.csv";
+  // check if the file exists
+  if (!fs.existsSync(sampleDatasetPath)) {
+    await downloadLatestDatasetOrigin();
+  }
 
   // launch the browser
   const browser = await puppeteer.launch({

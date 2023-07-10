@@ -23,9 +23,6 @@ export async function downloadLatestDatasetOrigin() {
   const file = fs.createWriteStream(latestDatasetOriginPath);
   const response = await fetch(latestDatasetOrigin, {
     method: "GET",
-    headers: {
-      //   "Content-Type": "text/csv",
-    },
   });
   await new Promise((resolve: any, reject: any) => {
     if (!response.body) {
