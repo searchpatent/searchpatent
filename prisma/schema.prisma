@@ -17,14 +17,20 @@ model User {
 }
 
 model intellectualProperty {
-  id                       String    @id @default(uuid())
-  name                     String
-  description              String
-  stateRegisterationNumber Int
-  applicationNumber        Int
-  applicationDate          DateTime
-  registrationDate         DateTime
-  registrationExpiryDate   DateTime?
-  imageUrlOrigin           String
-  copyRightOwner           String
+  id                           String    @id @default(uuid())
+  langCode                     String
+  registrationNumber           Int?      @unique
+  registrationExpiryDate       DateTime?
+  registrationExtendedTill     DateTime?
+  registrationDate             DateTime?
+  applicationNumber            Int       @unique
+  applicationDate              DateTime
+  publicationDate              DateTime?
+  imageIdLocal                 String
+  unprotectedTrademarkElements String
+  applicant                    String
+  addressForCorrespondence     String
+  classes                      String
+  copyRightHolder              String
+  colorCombination             String[]
 }
