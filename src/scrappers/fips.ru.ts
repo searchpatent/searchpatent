@@ -1,72 +1,43 @@
 import { FipsScrappedData } from "../../types/fips.types";
 import { convertDotSeparatedDateToISO } from "../scripts/date-functions";
 
-export async function scrapFips(
-  browser: any,
-  url: string
-): Promise<FipsScrappedData | null> {
+export async function scrapFips(browser: any, url: string): Promise<any> {
   const page = await browser.newPage();
   await page.goto(url, { waitUntil: "networkidle2" });
 
   const data = await page.evaluate(async () => {
-    const row = document.querySelectorAll("tr")[4] as any;
-
-    if (!row) return;
-    const stateRegistrationNumber = row.querySelector(
-      "td#BibL p.bib:nth-child(1) b a"
-    ).innerText;
-    const applicationNumber = row.querySelector(
-      "td#BibL p.bib:nth-child(2) b"
-    )?.innerText;
-    const expirationDate = row.querySelector(
-      "td#BibL p.bib:nth-child(3) b"
-    )?.innerText;
-    const applicationDate = row.querySelector(
-      "td#BibR p.bib:nth-child(1) b"
-    )?.innerText;
-    const registrationDate = row.querySelector(
-      "td#BibR p.bib:nth-child(2) b"
-    )?.innerText;
-    const publicationDate = row.querySelector(
-      "td#BibR p.bib:nth-child(3) b"
-    )?.innerText;
-
-    const imgTag = document.querySelector('p.bib a[target="_blank"] img');
-    const imgUrl = imgTag ? imgTag.getAttribute("src") : null;
-
-    const holderName = (document as any).querySelector(
-      "p.bib:nth-child(4) b"
-    )?.innerText;
-    console.log("abc", holderName);
-    const classLevel = (document as any).querySelector("p.bib:nth-child(5) b")
-      ?.innerText as any;
-
-    return {
-      stateRegistrationNumber,
-      applicationNumber,
-      expirationDate,
-      applicationDate,
-      registrationDate,
-      publicationDate,
-      imgUrl,
-      holderName,
-      classLevel,
+    const translationMap: any = {
+      "Номер государственной регистрации: ": "stateRegisterationNumber",
+      "Номер заявки: ": "applicationNumber",
+      "Дата истечения срока действия исключительного права: ":
+        "registrationExpiryDate",
+      "Дата подачи заявки: ": "applicationDate",
+      "Дата государственной регистрации: ": "registrationDate",
+      "Дата публикации: ": "publicationDate",
+      "Правообладатель: ": "copyRightOwner",
+      "Классы МКТУ и перечень товаров и/или услуг:": "classes",
     };
+    // get tag font with inner text value of Registration number: then move 4 tags up to get the value of inner text of the nested b tag
+    const allItags = document.querySelectorAll("i");
+    // loop over every i
+    for (let i = 0; i < allItags.length; i++) {
+      // in every i go 2 tags up to get the parent element and then get the value of b tag under the parent elem
+      const parentElem = allItags[i].parentElement as any;
+      if (parentElem) {
+        const bTag = parentElem.querySelector("b");
+        if (bTag) {
+          // use translation map to get the key of the object
+          const key = translationMap[allItags[i].innerText];
+          if (key) {
+            // get the value of the next sibling of the parent element
+            const value = parentElem.nextElementSibling?.querySelector("b");
+            // set the value of the key of the object
+            console.log(key, value);
+            return { [key]: value?.innerText };
+          }
+        }
+      }
+    }
   });
-
-  if (!data) {
-    console.log("No data found");
-    return null;
-  }
-
-  const standardisedData = {
-    ...data,
-    standardisedDates: {
-      applicationDate: convertDotSeparatedDateToISO(data.applicationDate),
-      registrationDate: convertDotSeparatedDateToISO(data.registrationDate),
-      publicationDate: convertDotSeparatedDateToISO(data.publicationDate),
-      expirationDate: convertDotSeparatedDateToISO(data.expirationDate),
-    },
-  };
-  return standardisedData;
+  console.log(data);
 }
