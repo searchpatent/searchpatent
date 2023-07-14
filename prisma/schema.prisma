@@ -18,19 +18,19 @@ model User {
 
 model intellectualProperty {
   id                           String    @id @default(uuid())
-  langCode                     String
+  langCode                     String?
   registrationNumber           Int?      @unique
   registrationExpiryDate       DateTime?
   registrationExtendedTill     DateTime?
   registrationDate             DateTime?
-  applicationNumber            Int       @unique
-  applicationDate              DateTime
+  applicationNumber            Int?      @unique
+  applicationDate              DateTime?
   publicationDate              DateTime?
-  imageIdLocal                 String
-  unprotectedTrademarkElements String
-  applicant                    String
-  addressForCorrespondence     String
-  classes                      String
-  copyRightHolder              String
+  imageIdLocal                 String?
+  unprotectedTrademarkElements String?
+  applicant                    String?
+  addressForCorrespondence     String?
+  classes                      String?
+  copyRightHolder              String?
   colorCombination             String[]
 }
