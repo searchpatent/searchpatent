@@ -1,43 +1,116 @@
-import { FipsScrappedData } from "../../types/fips.types";
-import { convertDotSeparatedDateToISO } from "../scripts/date-functions";
+const puppeteer = require("puppeteer");
 
-export async function scrapFips(browser: any, url: string): Promise<any> {
+async function extractTrademarkInformation() {
+  const browser = await puppeteer.launch();
   const page = await browser.newPage();
-  await page.goto(url, { waitUntil: "networkidle2" });
 
-  const data = await page.evaluate(async () => {
-    const translationMap: any = {
-      "Номер государственной регистрации: ": "stateRegisterationNumber",
-      "Номер заявки: ": "applicationNumber",
-      "Дата истечения срока действия исключительного права: ":
-        "registrationExpiryDate",
-      "Дата подачи заявки: ": "applicationDate",
-      "Дата государственной регистрации: ": "registrationDate",
-      "Дата публикации: ": "publicationDate",
-      "Правообладатель: ": "copyRightOwner",
-      "Классы МКТУ и перечень товаров и/или услуг:": "classes",
-    };
-    // get tag font with inner text value of Registration number: then move 4 tags up to get the value of inner text of the nested b tag
-    const allItags = document.querySelectorAll("i");
-    // loop over every i
-    for (let i = 0; i < allItags.length; i++) {
-      // in every i go 2 tags up to get the parent element and then get the value of b tag under the parent elem
-      const parentElem = allItags[i].parentElement as any;
-      if (parentElem) {
-        const bTag = parentElem.querySelector("b");
-        if (bTag) {
-          // use translation map to get the key of the object
-          const key = translationMap[allItags[i].innerText];
-          if (key) {
-            // get the value of the next sibling of the parent element
-            const value = parentElem.nextElementSibling?.querySelector("b");
-            // set the value of the key of the object
-            console.log(key, value);
-            return { [key]: value?.innerText };
-          }
-        }
-      }
-    }
-  });
-  console.log(data);
+  // Load the HTML content
+  const htmlContent = `YOUR_HTML_CONTENT_HERE`;
+  await page.setContent(htmlContent);
+
+  // Extract the trademark information
+  const trademarkData = {};
+
+  // Agency
+  const agencyElement = await page.$("#BibGerb");
+  trademarkData.agency = await page.evaluate(
+    (element) => element.textContent.trim(),
+    agencyElement
+  );
+
+  // Trademark Registration Number
+  const registrationNumberElement = await page.$("#BibL a");
+  trademarkData.registrationNumber = await page.evaluate(
+    (element) => element.textContent.trim(),
+    registrationNumberElement
+  );
+
+  // Status
+  const statusElement = await page.$(".Status");
+  trademarkData.status = await page.evaluate(
+    (element) => element.textContent.trim(),
+    statusElement
+  );
+
+  // Trademark Type
+  const trademarkTypeElement = await page.$("#BibType");
+  trademarkData.trademarkType = await page.evaluate(
+    (element) => element.textContent.trim(),
+    trademarkTypeElement
+  );
+
+  // Application Number
+  const applicationNumberElement = await page.$("#BibL p:nth-child(2) b");
+  trademarkData.applicationNumber = await page.evaluate(
+    (element) => element.textContent.trim(),
+    applicationNumberElement
+  );
+
+  // Registration Expiration Date
+  const expirationDateElement = await page.$("#BibL p:nth-child(3) b");
+  trademarkData.expirationDate = await page.evaluate(
+    (element) => element.textContent.trim(),
+    expirationDateElement
+  );
+
+  // Application Date
+  const applicationDateElement = await page.$("#BibR p:nth-child(1) b");
+  trademarkData.applicationDate = await page.evaluate(
+    (element) => element.textContent.trim(),
+    applicationDateElement
+  );
+
+  // Registration Date
+  const registrationDateElement = await page.$("#BibR p:nth-child(2) b");
+  trademarkData.registrationDate = await page.evaluate(
+    (element) => element.textContent.trim(),
+    registrationDateElement
+  );
+
+  // Publication Date
+  const publicationDateElement = await page.$("#BibR p:nth-child(3) b");
+  trademarkData.publicationDate = await page.evaluate(
+    (element) => element.textContent.trim(),
+    publicationDateElement
+  );
+
+  await browser.close();
+
+  return trademarkData;
 }
+
+// Call the function and handle missing values
+extractTrademarkInformation()
+  .then((trademarkData) => {
+    // Handle missing values
+    trademarkData.agency = trademarkData.agency || "N/A";
+    trademarkData.registrationNumber =
+      trademarkData.registrationNumber || "N/A";
+    trademarkData.status = trademarkData.status || "N/A";
+    trademarkData.trademarkType = trademarkData.trademarkType || "N/A";
+    trademarkData.applicationNumber = trademarkData.applicationNumber || "N/A";
+    trademarkData.expirationDate = trademarkData.expirationDate || "N/A";
+    trademarkData.applicationDate = trademarkData.applicationDate || "N/A";
+    trademarkData.registrationDate = trademarkData.registrationDate || "N/A";
+    trademarkData.publicationDate = trademarkData.publicationDate || "N/A";
+
+    // Use the extracted trademark information
+    console.log("Trademark Agency:", trademarkData.agency);
+    console.log(
+      "Trademark Registration Number:",
+      trademarkData.registrationNumber
+    );
+    console.log("Trademark Status:", trademarkData.status);
+    console.log("Trademark Type:", trademarkData.trademarkType);
+    console.log(
+      "Trademark Application Number:",
+      trademarkData.applicationNumber
+    );
+    console.log("Trademark Expiration Date:", trademarkData.expirationDate);
+    console.log("Trademark Application Date:", trademarkData.applicationDate);
+    console.log("Trademark Registration Date:", trademarkData.registrationDate);
+    console.log("Trademark Publication Date:", trademarkData.publicationDate);
+  })
+  .catch((error) => {
+    console.error("Error extracting trademark information:", error);
+  });
