@@ -3,12 +3,12 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 const arrayOfUrls = [
-  "https://www.fips.ru/fips_servl/fips_servlet?DB=RUTM&rn=1895&DocNumber=186745",
-  "https://www.fips.ru/fips_servl/fips_servlet?DB=RUTM&rn=1895&DocNumber=186746",
-  "https://www.fips.ru/fips_servl/fips_servlet?DB=RUTM&rn=1895&DocNumber=186747",
-  "https://www.fips.ru/fips_servl/fips_servlet?DB=RUTM&rn=1895&DocNumber=186748",
-  "https://www.fips.ru/fips_servl/fips_servlet?DB=RUTM&rn=1895&DocNumber=186749",
-  "https://www.fips.ru/fips_servl/fips_servlet?DB=RUTM&rn=1895&DocNumber=186750",
+  "https://www1.fips.ru/registers-doc-view/fips_servlet?DB=RUTMAP&rn=2661&DocNumber=2023709902&TypeFile=pdf",
+  "https://www1.fips.ru/registers-doc-view/fips_servlet?DB=RUTMAP&rn=2661&DocNumber=2023709903&TypeFile=pdf",
+  "https://www1.fips.ru/registers-doc-view/fips_servlet?DB=RUTMAP&rn=2661&DocNumber=2023709904&TypeFile=pdf",
+  "https://www1.fips.ru/registers-doc-view/fips_servlet?DB=RUTMAP&rn=2661&DocNumber=2023709905&TypeFile=pdf",
+  "https://www1.fips.ru/registers-doc-view/fips_servlet?DB=RUTMAP&rn=2661&DocNumber=2023709906&TypeFile=pdf",
+  "https://www1.fips.ru/registers-doc-view/fips_servlet?DB=RUTMAP&rn=2661&DocNumber=2023709907&TypeFile=pdf",
 ];
 
 async function extractTrademarkInformation(url: string) {
@@ -31,7 +31,6 @@ async function extractTrademarkInformation(url: string) {
     ).singleNodeValue
       ? "trademarkApplication"
       : "trademarkCertificate";
-    console.log(docType);
 
     function getValueByITag(ITag: any) {
       // go four elements up and get the value of b tag
@@ -88,7 +87,7 @@ async function extractTrademarkInformation(url: string) {
       colorCombination: [],
     };
 
-    function handleApplication() {
+    function handleCertficate() {
       const allB = document.querySelectorAll("b");
       data.registrationNumber = parseInt(allB[0].innerText);
       data.applicationNumber = parseInt(allB[1].innerText);
@@ -137,7 +136,65 @@ async function extractTrademarkInformation(url: string) {
       }
     }
     data.classes = getClasses();
-    handleApplication();
+
+    function handleApplication() {
+      const allB = document.querySelectorAll("b");
+      data.applicationNumber = parseInt(allB[0].innerText);
+      data.applicationDate = convertDotSeparatedDateToISO(allB[1].innerText);
+      const applicantTag = document.evaluate(
+        "//i[contains(., 'Заявитель: ')]",
+        document,
+        null,
+        XPathResult.FIRST_ORDERED_NODE_TYPE,
+        null
+      ).singleNodeValue;
+      if (applicantTag) {
+        data.applicant = getValueByITag(applicantTag);
+      }
+      const addressForCorrespondenceTag = document.evaluate(
+        "//i[contains(., 'Адрес для переписки: ')]",
+        document,
+        null,
+        XPathResult.FIRST_ORDERED_NODE_TYPE,
+        null
+      ).singleNodeValue;
+      if (addressForCorrespondenceTag) {
+        data.addressForCorrespondence = getValueByITag(
+          addressForCorrespondenceTag
+        );
+      }
+
+      const colorCombinationTag = document.evaluate(
+        "//i[contains(., 'Указание цвета или цветового сочетания: ')]",
+        document,
+        null,
+        XPathResult.FIRST_ORDERED_NODE_TYPE,
+        null
+      ).singleNodeValue;
+      if (colorCombinationTag) {
+        data.colorCombination = getValueByITag(colorCombinationTag).split(", ");
+      }
+
+      const unprotectedTrademarkElementsTag = document.evaluate(
+        "//i[contains(., 'Неохраняемые элементы товарного знака: ')]",
+        document,
+        null,
+        XPathResult.FIRST_ORDERED_NODE_TYPE,
+        null
+      ).singleNodeValue;
+      if (unprotectedTrademarkElementsTag) {
+        data.unprotectedTrademarkElements = getValueByITag(
+          unprotectedTrademarkElementsTag
+        );
+      }
+    }
+    if (docType === "trademarkCertificate") {
+      handleCertficate();
+    }
+    if (docType === "trademarkApplication") {
+      handleApplication();
+    }
+
     return data;
   });
 
