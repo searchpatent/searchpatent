@@ -17,20 +17,26 @@ model User {
 }
 
 model intellectualProperty {
-  id                           String    @id @default(uuid())
+  id                           String        @id @default(uuid())
   langCode                     String?
-  registrationNumber           Int?      @unique
+  registrationNumber           Int?          @unique
   registrationExpiryDate       DateTime?
   registrationExtendedTill     DateTime?
   registrationDate             DateTime?
-  applicationNumber            Int?      @unique
+  applicationNumber            Int?          @unique
   applicationDate              DateTime?
   publicationDate              DateTime?
   imageIdLocal                 String?
   unprotectedTrademarkElements String?
   applicant                    String?
   addressForCorrespondence     String?
-  classes                      String?
+  classes                      String[]
   copyRightHolder              String?
   colorCombination             String[]
+  documentType                 documentType?
+}
+
+enum documentType {
+  trademarkCertificate
+  trademarkApplication
 }
