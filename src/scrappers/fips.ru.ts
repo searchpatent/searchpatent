@@ -1,116 +1,159 @@
-const puppeteer = require("puppeteer");
+import puppeteer from "puppeteer";
+import { PrismaClient } from "@prisma/client";
 
-async function extractTrademarkInformation() {
-  const browser = await puppeteer.launch();
+const prisma = new PrismaClient();
+const arrayOfUrls = [
+  "https://www.fips.ru/fips_servl/fips_servlet?DB=RUTM&rn=1895&DocNumber=186745",
+  "https://www.fips.ru/fips_servl/fips_servlet?DB=RUTM&rn=1895&DocNumber=186746",
+  "https://www.fips.ru/fips_servl/fips_servlet?DB=RUTM&rn=1895&DocNumber=186747",
+  "https://www.fips.ru/fips_servl/fips_servlet?DB=RUTM&rn=1895&DocNumber=186748",
+  "https://www.fips.ru/fips_servl/fips_servlet?DB=RUTM&rn=1895&DocNumber=186749",
+  "https://www.fips.ru/fips_servl/fips_servlet?DB=RUTM&rn=1895&DocNumber=186750",
+];
+
+async function extractTrademarkInformation(url: string) {
+  const browser = await puppeteer.launch({
+    headless: false,
+  });
   const page = await browser.newPage();
 
-  // Load the HTML content
-  const htmlContent = `YOUR_HTML_CONTENT_HERE`;
-  await page.setContent(htmlContent);
+  //
+  // const url = "https://fips.ru/registers-doc-view/fips_servlet?DB=RUPAT&DocNumber=201773&TypeFile=html";
+  await page.goto(url);
 
-  // Extract the trademark information
-  const trademarkData = {};
+  const data = await page.evaluate(async () => {
+    const docType = document.evaluate(
+      "//td[contains(., 'Заявка на регистрацию товарного знака (знака обслуживания)')]",
+      document,
+      null,
+      XPathResult.FIRST_ORDERED_NODE_TYPE,
+      null
+    ).singleNodeValue
+      ? "trademarkApplication"
+      : "trademarkCertificate";
+    console.log(docType);
 
-  // Agency
-  const agencyElement = await page.$("#BibGerb");
-  trademarkData.agency = await page.evaluate(
-    (element) => element.textContent.trim(),
-    agencyElement
-  );
+    function getValueByITag(ITag: any) {
+      // go four elements up and get the value of b tag
+      return ITag.parentElement.querySelector("b").innerText;
+    }
 
-  // Trademark Registration Number
-  const registrationNumberElement = await page.$("#BibL a");
-  trademarkData.registrationNumber = await page.evaluate(
-    (element) => element.textContent.trim(),
-    registrationNumberElement
-  );
+    function convertDotSeparatedDateToISO(date: string) {
+      const [day, month, year] = date.split(".");
 
-  // Status
-  const statusElement = await page.$(".Status");
-  trademarkData.status = await page.evaluate(
-    (element) => element.textContent.trim(),
-    statusElement
-  );
+      try {
+        return new Date(`${year}-${month}-${day}`).toISOString();
+      } catch (error) {
+        return null;
+      }
+    }
+    function getClasses() {
+      const classesTag = document.evaluate(
+        "//i[contains(., 'Классы МКТУ и перечень товаров и/или услуг:')]",
+        document,
+        null,
+        XPathResult.FIRST_ORDERED_NODE_TYPE,
+        null
+      ).singleNodeValue;
+      if (classesTag) {
+        //  check if the parent of the tag has multiple b tags, if yes get all the b tags and return their innerText
+        const parent = classesTag.parentElement;
+        const allB = parent?.querySelectorAll("b");
+        if (!allB) return null;
+        const classes = [];
+        for (let i = 0; i < allB.length; i++) {
+          classes.push(allB[i].innerText);
+        }
+        return classes;
+      }
+    }
+    // EXTRACTION FUNCTIONS
 
-  // Trademark Type
-  const trademarkTypeElement = await page.$("#BibType");
-  trademarkData.trademarkType = await page.evaluate(
-    (element) => element.textContent.trim(),
-    trademarkTypeElement
-  );
+    let data: any = {
+      documentType: docType,
+      langCode: "RU",
+      registrationNumber: null,
+      registrationExpiryDate: null,
+      registrationExtendedTill: null,
+      registrationDate: null,
+      applicationNumber: null,
+      applicationDate: null,
+      publicationDate: null,
+      imageIdLocal: null,
+      unprotectedTrademarkElements: null,
+      applicant: null,
+      addressForCorrespondence: null,
+      classes: null,
+      copyRightHolder: null,
+      colorCombination: [],
+    };
 
-  // Application Number
-  const applicationNumberElement = await page.$("#BibL p:nth-child(2) b");
-  trademarkData.applicationNumber = await page.evaluate(
-    (element) => element.textContent.trim(),
-    applicationNumberElement
-  );
+    function handleApplication() {
+      const allB = document.querySelectorAll("b");
+      data.registrationNumber = parseInt(allB[0].innerText);
+      data.applicationNumber = parseInt(allB[1].innerText);
+      data.registrationExpiryDate = convertDotSeparatedDateToISO(
+        allB[2].innerText
+      );
+      data.applicationDate = convertDotSeparatedDateToISO(allB[3].innerText);
+      data.registrationDate = convertDotSeparatedDateToISO(allB[4].innerText);
+      data.publicationDate = convertDotSeparatedDateToISO(allB[5].innerText);
 
-  // Registration Expiration Date
-  const expirationDateElement = await page.$("#BibL p:nth-child(3) b");
-  trademarkData.expirationDate = await page.evaluate(
-    (element) => element.textContent.trim(),
-    expirationDateElement
-  );
+      // check if an i tag exists with inner value Имя правообладателя:
+      const copyRightHolderTag = document.evaluate(
+        "//i[contains(., 'Имя правообладателя:')]",
+        document,
+        null,
+        XPathResult.FIRST_ORDERED_NODE_TYPE,
+        null
+      ).singleNodeValue;
+      if (copyRightHolderTag) {
+        data.copyRightHolder = getValueByITag(copyRightHolderTag);
+      }
 
-  // Application Date
-  const applicationDateElement = await page.$("#BibR p:nth-child(1) b");
-  trademarkData.applicationDate = await page.evaluate(
-    (element) => element.textContent.trim(),
-    applicationDateElement
-  );
+      const unprotectedTrademarkElementsTag = document.evaluate(
+        "//i[contains(., 'Неохраняемый элемент товарного знака: ')]",
+        document,
+        null,
+        XPathResult.FIRST_ORDERED_NODE_TYPE,
+        null
+      ).singleNodeValue;
+      if (unprotectedTrademarkElementsTag) {
+        data.unprotectedTrademarkElements = getValueByITag(
+          unprotectedTrademarkElementsTag
+        );
+      }
 
-  // Registration Date
-  const registrationDateElement = await page.$("#BibR p:nth-child(2) b");
-  trademarkData.registrationDate = await page.evaluate(
-    (element) => element.textContent.trim(),
-    registrationDateElement
-  );
+      const colorCombinationTag = document.evaluate(
+        "//i[contains(., 'Указание цвета или цветового сочетания: ')]",
+        document,
+        null,
+        XPathResult.FIRST_ORDERED_NODE_TYPE,
 
-  // Publication Date
-  const publicationDateElement = await page.$("#BibR p:nth-child(3) b");
-  trademarkData.publicationDate = await page.evaluate(
-    (element) => element.textContent.trim(),
-    publicationDateElement
-  );
+        null
+      ).singleNodeValue;
+      if (colorCombinationTag) {
+        data.colorCombination = getValueByITag(colorCombinationTag).split(", ");
+      }
+    }
+    data.classes = getClasses();
+    handleApplication();
+    return data;
+  });
 
-  await browser.close();
+  console.log("data", data);
 
-  return trademarkData;
+  await prisma.intellectualProperty.create({
+    data: {
+      ...data,
+    },
+  });
+}
+async function test() {
+  for (let i = 0; i < arrayOfUrls.length; i++) {
+    await extractTrademarkInformation(arrayOfUrls[i]);
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+  }
 }
 
-// Call the function and handle missing values
-extractTrademarkInformation()
-  .then((trademarkData) => {
-    // Handle missing values
-    trademarkData.agency = trademarkData.agency || "N/A";
-    trademarkData.registrationNumber =
-      trademarkData.registrationNumber || "N/A";
-    trademarkData.status = trademarkData.status || "N/A";
-    trademarkData.trademarkType = trademarkData.trademarkType || "N/A";
-    trademarkData.applicationNumber = trademarkData.applicationNumber || "N/A";
-    trademarkData.expirationDate = trademarkData.expirationDate || "N/A";
-    trademarkData.applicationDate = trademarkData.applicationDate || "N/A";
-    trademarkData.registrationDate = trademarkData.registrationDate || "N/A";
-    trademarkData.publicationDate = trademarkData.publicationDate || "N/A";
-
-    // Use the extracted trademark information
-    console.log("Trademark Agency:", trademarkData.agency);
-    console.log(
-      "Trademark Registration Number:",
-      trademarkData.registrationNumber
-    );
-    console.log("Trademark Status:", trademarkData.status);
-    console.log("Trademark Type:", trademarkData.trademarkType);
-    console.log(
-      "Trademark Application Number:",
-      trademarkData.applicationNumber
-    );
-    console.log("Trademark Expiration Date:", trademarkData.expirationDate);
-    console.log("Trademark Application Date:", trademarkData.applicationDate);
-    console.log("Trademark Registration Date:", trademarkData.registrationDate);
-    console.log("Trademark Publication Date:", trademarkData.publicationDate);
-  })
-  .catch((error) => {
-    console.error("Error extracting trademark information:", error);
-  });
+test();
