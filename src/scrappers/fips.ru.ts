@@ -2,23 +2,10 @@ import puppeteer from "puppeteer";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
-const arrayOfUrls = [
-  "https://www1.fips.ru/registers-doc-view/fips_servlet?DB=RUTMAP&rn=2661&DocNumber=2023709902&TypeFile=pdf",
-  "https://www1.fips.ru/registers-doc-view/fips_servlet?DB=RUTMAP&rn=2661&DocNumber=2023709903&TypeFile=pdf",
-  "https://www1.fips.ru/registers-doc-view/fips_servlet?DB=RUTMAP&rn=2661&DocNumber=2023709904&TypeFile=pdf",
-  "https://www1.fips.ru/registers-doc-view/fips_servlet?DB=RUTMAP&rn=2661&DocNumber=2023709905&TypeFile=pdf",
-  "https://www1.fips.ru/registers-doc-view/fips_servlet?DB=RUTMAP&rn=2661&DocNumber=2023709906&TypeFile=pdf",
-  "https://www1.fips.ru/registers-doc-view/fips_servlet?DB=RUTMAP&rn=2661&DocNumber=2023709907&TypeFile=pdf",
-];
 
-async function extractTrademarkInformation(url: string) {
-  const browser = await puppeteer.launch({
-    headless: false,
-  });
+export async function extractTrademarkInformation(browser: any, url: string) {
   const page = await browser.newPage();
 
-  //
-  // const url = "https://fips.ru/registers-doc-view/fips_servlet?DB=RUPAT&DocNumber=201773&TypeFile=html";
   await page.goto(url);
 
   const data = await page.evaluate(async () => {
@@ -85,6 +72,7 @@ async function extractTrademarkInformation(url: string) {
       classes: null,
       copyRightHolder: null,
       colorCombination: [],
+      imageOrigin: null,
     };
 
     function handleCertficate() {
@@ -188,6 +176,14 @@ async function extractTrademarkInformation(url: string) {
         );
       }
     }
+    function getImgUrl() {
+      const imgTag = document.querySelectorAll("img")[1];
+      if (imgTag) {
+        return imgTag.src;
+      }
+      return null;
+    }
+    data.imageOrigin = getImgUrl();
     if (docType === "trademarkCertificate") {
       handleCertficate();
     }
@@ -198,19 +194,5 @@ async function extractTrademarkInformation(url: string) {
     return data;
   });
 
-  console.log("data", data);
-
-  await prisma.intellectualProperty.create({
-    data: {
-      ...data,
-    },
-  });
+  return data;
 }
-async function test() {
-  for (let i = 0; i < arrayOfUrls.length; i++) {
-    await extractTrademarkInformation(arrayOfUrls[i]);
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-  }
-}
-
-test();
