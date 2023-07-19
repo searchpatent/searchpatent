@@ -1,9 +1,11 @@
 import puppeteer from "puppeteer";
-import { scrapFips } from "./src/scrappers/fips.ru";
+import { extractTrademarkInformation } from "./src/scrappers/fips.ru";
 import { addTradeMark } from "./src/scripts/insert-trademark";
 import { parseCsv } from "./src/scripts/parse-csv";
 import * as fs from "fs";
 import { downloadLatestDatasetOrigin } from "./src/scripts/get-latest-excel";
+import { downloadFileAndStoreByUrl } from "./src/scripts/download-and-store-file";
+import { v4 as uuid } from "uuid";
 async function test(from: number, to: number) {
   // read the sample dataset and get the docuemntId from index 0 and then log the documentId
   const sampleDatasetPath = "./files/latest-dataset-origin.csv";
@@ -19,12 +21,12 @@ async function test(from: number, to: number) {
 
   // parse the csv file and get the documentIds
   const docIds: number[] = await parseCsv(sampleDatasetPath, from, to);
-
+  console.info("🚀 Starting scraping");
   for (let i = 0; i < docIds.length; i++) {
     // wait 3 seconds to avoid getting blocked by the website, rate limit is 3 second between each request from same host
     await new Promise((resolve) => setTimeout(resolve, 3000));
 
-    const scrapedData = await scrapFips(
+    const scrapedData = await extractTrademarkInformation(
       browser,
       "https://new.fips.ru/registers-doc-view/fips_servlet?DB=RUTM&DocNumber=" +
         docIds[i]
@@ -32,17 +34,18 @@ async function test(from: number, to: number) {
     if (!scrapedData) {
       return;
     }
-    await addTradeMark(
-      scrapedData.holderName,
-      scrapedData.classLevel,
-      parseInt(scrapedData.stateRegistrationNumber),
-      parseInt(scrapedData.applicationNumber),
-      scrapedData.standardisedDates.registrationDate,
-      scrapedData.standardisedDates.registrationDate,
-      scrapedData.standardisedDates.expirationDate,
-      scrapedData.imgUrl,
-      scrapedData.holderName
-    );
+    const ext = scrapedData.imageOrigin.split(".").pop();
+    const fileId = uuid() + "." + ext;
+    await downloadFileAndStoreByUrl(fileId, scrapedData.imageOrigin);
+    await addTradeMark({
+      ...scrapedData,
+      imageIdLocal: fileId,
+    });
+    // if i === length - 1, close the browser
+    if (i === docIds.length - 1) {
+      console.info("✅ Scraping completed");
+      await browser.close();
+    }
   }
 }
 
