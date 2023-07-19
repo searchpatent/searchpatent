@@ -27,6 +27,7 @@ model intellectualProperty {
   applicationDate              DateTime?
   publicationDate              DateTime?
   imageIdLocal                 String?
+  imageOrigin                  String?
   unprotectedTrademarkElements String?
   applicant                    String?
   addressForCorrespondence     String?
