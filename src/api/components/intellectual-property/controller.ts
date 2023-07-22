@@ -33,3 +33,11 @@ export function updateIP(id: string, data: any) {
     },
   });
 }
+
+export function deleteIPById(id: string) {
+  return prisma.intellectualProperty.delete({
+    where: {
+      id,
+    },
+  });
+}

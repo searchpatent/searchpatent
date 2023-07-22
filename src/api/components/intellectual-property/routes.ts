@@ -1,5 +1,11 @@
 import express, { NextFunction, Request, Response } from "express";
-import { getIPByHolder, getIPById, getIPs, updateIP } from "./controller";
+import {
+  deleteIPById,
+  getIPByHolder,
+  getIPById,
+  getIPs,
+  updateIP,
+} from "./controller";
 const router = express.Router();
 
 router.get("/", async (req: Request, res: Response, next: NextFunction) => {
@@ -31,5 +37,15 @@ router.put("/:id", async (req: Request, res: Response, next: NextFunction) => {
     ip,
   });
 });
+
+router.delete(
+  "/:id",
+  async (req: Request, res: Response, next: NextFunction) => {
+    const ip = await deleteIPById(req.params.id);
+    return res.status(200).json({
+      ip,
+    });
+  }
+);
 
 export default router;
