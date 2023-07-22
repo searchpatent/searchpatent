@@ -41,3 +41,14 @@ enum documentType {
   trademarkCertificate
   trademarkApplication
 }
+
+model searchPatentUser {
+  id             String   @id @default(uuid())
+  email          String   @unique
+  name           String?
+  // HASH
+  hashedPassword String
+  username       String?  @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
